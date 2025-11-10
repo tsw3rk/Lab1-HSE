@@ -4,10 +4,12 @@
 #define EXEC_ERROR_FORMAT 0 // Некорректный формат команды или аргументы
 #define EXEC_ERROR_FATAL -1 // Критическая ошибка (например, наступление в яму)
 
+#include <field.h>
+
 typedef struct {
-    int sizeWasCalled;  // 1 если SIZE была, 0 если нет
-    int startWasCalled; // 1 если START была, 0 если нет
-    int lineNumber;     // текущий номер строки
+    int sizeWasCalled;
+    int startWasCalled;
+    int lineNumber;
 
     // Новые поля для опций
     int noDisplay;
@@ -17,6 +19,8 @@ typedef struct {
     // Новое поле для отслеживания вложенности EXEC
     int execDepth;
 
+    // Новое поле для хранения истории состояний
+    StateHistory* history; // Указатель на историю, создаётся в main.c
 } ExecutionState;
 
 #include "field.h"
