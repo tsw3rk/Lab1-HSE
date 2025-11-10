@@ -13,6 +13,9 @@
 
 // Возвращает EXEC_SUCCESS (1), EXEC_ERROR_FORMAT (0), EXEC_ERROR_FATAL (-1)
 
+int execute_command_internal(Field* f, Dino* d, char* line, ExecutionState* state) {
+    return executeCommand(f, d, line, state);
+} // Вызываем основную функцию
 
 int executeСommand(Field* f, Dino* d, char* line,  ExecutionState* state) {
     char cmd[20];
@@ -426,6 +429,68 @@ int executeСommand(Field* f, Dino* d, char* line,  ExecutionState* state) {
         return EXEC_ERROR_FATAL; // Критическая ошибка
     }
 
-    // Если команда не подошла ни под одну из известных, возвращаем ошибку
-    return EXEC_ERROR_FORMAT;
+    else if (strcmp(cmd, "UNDO") == 0) {
+            // Проверяем, есть ли что откатывать
+            if (state->history && state->history->top >= 0) {
+                StateSnapshot* snapshot = popState(state->history);
+                if (snapshot) {
+                    // Восстанавливаем состояние из снимка
+                    restoreSnapshot(f, d, snapshot);
+                    // Освобождаем память снимка
+                    freeSnapshot(snapshot);
+                    // Возвращаем успех
+                    return EXEC_SUCCESS;
+                }
+            }
+            // Если история пуста или произошла ошибка при извлечении
+            // Возвращаем успех, но ничего не делаем (или можно выводить предупреждение)
+            return EXEC_SUCCESS; // Или EXEC_ERROR_FORMAT если хочется ошибку
+        }
+
+        else if (strcmp(cmd, "IF") == 0) {
+
+            // Найдём "THEN"
+            char* then_ptr = strstr(line, " THEN ");
+            if (!then_ptr) {
+                return EXEC_ERROR_FORMAT; // Нет "THEN"
+            }
+
+            // Разбиваем строку на "IF CELL x y IS <char>" и "<command>"
+
+            char condition_part[256];
+            char command_part[256];
+            strncpy(condition_part, line, then_ptr - line);
+            condition_part[then_ptr - line] = '\0';
+            strcpy(command_part, then_ptr + 6);
+
+
+            int x, y;
+            char expected_char;
+            if (sscanf(condition_part, "IF CELL %d %d IS %c", &x, &y, &expected_char) != 3) {
+                return EXEC_ERROR_FORMAT;
+            }
+
+            // Проверяем границы координат
+            if (x < 0 || x >= f->width || y < 0 || y >= f->height) {
+                return EXEC_ERROR_FORMAT; // Координаты за пределами поля
+            }
+
+            // Получаем символ из поля
+            char actual_char = f->grid[y][x];
+
+            // Проверяем, совпадает ли символ
+
+            if (actual_char == expected_char) {
+
+                int if_result = execute_command_internal(f, d, command_part, state);
+                return if_result; // Возвращаем результат выполнения команды в IF
+            } else {
+                // Условие не выполнено, команда игнорируется
+                return EXEC_SUCCESS; // Или EXEC_SUCCESS, если просто пропускаем
+            }
+        }
+
+        // Если команда не подошла ни под одну из известных, возвращаем ошибку
+        return EXEC_ERROR_FORMAT;
+    }
 }
