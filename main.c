@@ -1,22 +1,57 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "commands.h"
 #include "field.h"
 #include "dino.h"
+#include "utilities.h"
 
-// Структура для хранения состояния выполнения
+// Структура для хранения состояния выполнения и опций
 typedef struct {
-    int sizeWasCalled;  // 1 если SIZE была, 0 если нет
-    int startWasCalled; // 1 если START была, 0 если нет
-    int lineNumber;     // текущий номер строки
+    int sizeWasCalled;
+    int startWasCalled;
+    int lineNumber;
+
+    // Новые поля для опций
+    int noDisplay;
+    int noSave;
+    int intervalSeconds;
 } ExecutionState;
+
+void parseOptions(int argc, char* argv[], ExecutionState* state) {
+    state->noDisplay = 0;
+    state->noSave = 0;
+    state->intervalSeconds = 1; // По умолчанию 1 секунда
+
+    for (int i = 3; i < argc; i++) { // Начинаем с 3-го аргумента (после ./movdino input output)
+        if (strcmp(argv[i], "no-display") == 0) {
+            state->noDisplay = 1;
+        } else if (strcmp(argv[i], "no-save") == 0) {
+            state->noSave = 1;
+        } else if (strcmp(argv[i], "interval") == 0 && i + 1 < argc) {
+            // Проверяем, является ли следующий аргумент числом
+            char* endptr;
+            long val = strtol(argv[i + 1], &endptr, 10);
+            if (*endptr == '\0' && val >= 0 && val <= 10) { // Простая проверка диапазона
+                state->intervalSeconds = (int)val;
+                i++; // Пропускаем аргумент с числом
+            } else {
+                printf("Warning: Invalid interval value '%s'. Using default 1 second.\n", argv[i + 1]);
+            }
+        }
+    }
+}
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
         printf("Usage: %s input.txt output.txt [options]\n", argv[0]);
+        printf("Options: interval N, no-display, no-save\n");
         return 1;
     }
+
+    ExecutionState state = {0};
+    parseOptions(argc, argv, &state); // Парсим опции
 
     FILE* inputFile = fopen(argv[1], "r");
     if (!inputFile) {
@@ -24,11 +59,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    ExecutionState state = {0}; // Инициализируем структуру
-
-    char line[256]; // Буфер для строки
+    // Предположим, что f и d создаются в процессе выполнения команд SIZE и START
+    Field* f = NULL;
+    Dino* d = NULL;
     int result = 1;
-        while (fgets(line, sizeof(line), inputFile) != NULL) {
+    char line[256];
+
+    // Основной цикл чтения команд
+    while (fgets(line, sizeof(line), inputFile) != NULL) {
         state.lineNumber++;
 
         // Проверяем, начинается ли строка с комментария
@@ -36,17 +74,31 @@ int main(int argc, char* argv[]) {
             continue; // Пропускаем комментарий
         }
 
-        // Проверяем, есть ли команда (не пустая строка или только пробелы)
         char cmd[20];
         if (sscanf(line, "%19s", cmd) == 1) {
-            // Это начало проверок
+            // Проверки последовательности команд (как в Части 4)
             if (strcmp(cmd, "SIZE") == 0) {
                 if (state.sizeWasCalled) {
                     printf("Error: SIZE command repeated at line %d. Terminating.\n", state.lineNumber);
-                    result = 0; // Ошибка
+                    result = 0;
                     break;
                 }
-                state.sizeWasCalled = 1;
+                int w, h;
+                if (sscanf(line, "SIZE %d %d", &w, &h) == 2 && w >= 10 && w <= 100 && h >= 10 && h <= 100) {
+                    if (f) { freeField(f); } // Если f уже создана, освобождаем
+                    f = createField(w, h);
+                    if (f) {
+                        state.sizeWasCalled = 1;
+                    } else {
+                        printf("Error: Failed to create field at line %d. Terminating.\n", state.lineNumber);
+                        result = 0;
+                        break;
+                    }
+                } else {
+                    printf("Error: Invalid SIZE format or dimensions at line %d. Terminating.\n", state.lineNumber);
+                    result = 0;
+                    break;
+                }
             } else if (strcmp(cmd, "START") == 0) {
                 if (!state.sizeWasCalled) {
                     printf("Error: START command before SIZE at line %d. Terminating.\n", state.lineNumber);
@@ -58,32 +110,82 @@ int main(int argc, char* argv[]) {
                     result = 0;
                     break;
                 }
-                state.startWasCalled = 1;
+                // Выполняем команду START, создаём d
+                int x, y;
+                if (sscanf(line, "START %d %d", &x, &y) == 2 && x >= 0 && x < f->width && y >= 0 && y < f->height) {
+                    if (d) { freeDino(d); } // Если d уже создана, освобождаем
+                    d = createDino(x, y);
+                    if (d) {
+                        f->grid[y][x] = '#'; // Отмечаем динозавра на поле
+                        state.startWasCalled = 1;
+                    } else {
+                        printf("Error: Failed to create dino at line %d. Terminating.\n", state.lineNumber);
+                        result = 0;
+                        break;
+                    }
+                } else {
+                    printf("Error: Invalid START format or coordinates out of bounds at line %d. Terminating.\n", state.lineNumber);
+                    result = 0;
+                    break;
+                }
             } else {
                 // Любая другая команда, требующая, чтобы SIZE и START были выполнены
                 if (!state.sizeWasCalled) {
                     printf("Error: Command '%s' requires SIZE first, found at line %d. Terminating.\n", cmd, state.lineNumber);
-                    result = 0; // Ошибка
+                    result = 0;
                     break;
                 }
                 if (!state.startWasCalled) {
                     printf("Error: Command '%s' requires START first, found at line %d. Terminating.\n", cmd, state.lineNumber);
-                    result = 0; // Ошибка
+                    result = 0;
                     break;
                 }
+
+                // Вызываем execute_command для остальных команд
+                result = executeCommand(f, d, line);
+                if (result == EXEC_ERROR_FORMAT) {
+                    printf("Error: Unknown or invalid command '%s' at line %d. Terminating.\n", line, state.lineNumber);
+                    break;
+                } else if (result == EXEC_ERROR_FATAL) {
+                    // Ошибка, вызванная внутри execute_command (например, наступление в яму)
+                    // execute_command сам выводит сообщение
+                    break; // Программа завершается
+                }
             }
+        }
 
-            // Создаём структуры Field и Dino (или получаем из LOAD)
-            Field* f = NULL; // Предположим, что f создаётся в SIZE или LOAD
-            Dino* d = NULL;  // Предположим, что d создаётся в START
-
+        // Проверяем, нужно ли отображать поле
+        if (!state.noDisplay) {
+            // Очищаем консоль
+            clearScreen();
+            // Выводим поле
+            printFieldToConsole(f);
+            // Делаем задержку
+            sleepSeconds(state.intervalSeconds);
         }
     }
 
     fclose(inputFile);
 
+    // Проверяем, нужно ли сохранять в output.txt
+    if (!state.noSave && result != 0 && f != NULL) {
+        FILE* outputFile = fopen(argv[2], "w");
+        if (outputFile) {
+            // Выводим поле в файл (реализация в утилитах)
+            printFieldToFile(f, outputFile);
+            fclose(outputFile);
+        } else {
+            perror("Error opening output file for writing");
+            result = 0;
+        }
+    }
+
+    // Освобождение памяти
+    if (f) freeField(f);
+    if (d) freeDino(d);
+
     if (result == 0) {
-        return 1; // Ошибка
+        return 1;
     }
 
     return 0;
