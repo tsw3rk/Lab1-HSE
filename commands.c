@@ -118,7 +118,8 @@ int executeCommand(Field* f, Dino* d, char* line) {
 
         return 0;
 
-    } else if (strcmp(cmd, "MOUND")==0) {
+    }
+    else if (strcmp(cmd, "MOUND")==0) {
         char direction[10];
         if (sscanf(line, "MOUNT %s", direction) == 1) {
             int startPosition_x = d->x;
@@ -139,6 +140,92 @@ int executeCommand(Field* f, Dino* d, char* line) {
             }
             return 1;
         }
+        return 0;
+    }
+
+    else if (strcmp(cmd, "JUMP") == 0) {
+
+        char direction[10];
+        int n;
+
+
+        if (sscanf(line, "JUMP %s %d", direction, &n) == 2) {
+
+            if (n <= 0) {
+                return 0;
+            }
+
+
+            int dx = 0, dy = 0;
+            if (strcmp(direction, "UP") == 0) {
+                dy = -1;
+            } else if (strcmp(direction, "DOWN") == 0) {
+                dy = 1;
+            } else if (strcmp(direction, "LEFT") == 0) {
+                dx = -1;
+            } else if (strcmp(direction, "RIGHT") == 0) {
+                dx = 1;
+            } else {
+                return 0;
+            }
+
+
+            int currentX = d->x;
+            int currentY = d->y;
+
+
+            int finalX = currentX;
+            int finalY = currentY;
+
+
+            for (int step = 0; step < n; step++) {
+                // Вычисляем координату следующего шага
+                int nextX = (currentX + dx + f->width) % f->width;
+                int nextY = (currentY + dy + f->height) % f->height;
+
+                // Проверяем, является ли следующая клетка горой (^)
+                if (f->grid[nextY][nextX] == '^') {
+                    // Правило: Если по пути прыжка встречается гора, динозавр останавливается перед ней
+                    printf("Предупреждение: Прыжок остановлен перед горой (%d, %d). Дино остановился (%d, %d).\n", nextX, nextY, currentX, currentY);
+                    // Мы не меняем finalX, finalY, они остаются на текущей позиции
+                    // Выходим из цикла, прыжок остановлен
+                    break;
+                }
+
+                // Если не гора, шагаем дальше
+                currentX = nextX;
+                currentY = nextY;
+                // Обновляем finalX и finalY на каждом шагу, чтобы они указывали на итоговую позицию
+                finalX = currentX;
+                finalY = currentY;
+            }
+
+            // После цикла, finalX, finalY - это координаты, куда динозавр "приземлился" (или остановился)
+
+            // Проверяем, не является ли итоговая клетка ямой (%)
+            if (f->grid[finalY][finalX] == '%') {
+                // Правило: Если динозавр приземляется на яму, ошибка и завершение
+                printf("Ошибка: Дино упал в яму (%d, %d). Завершение.\n", finalX, finalY);
+                return -1;
+            }
+
+
+            if (f->paintGrid[d->y][d->x] != 0) {
+
+                f->grid[d->y][d->x] = f->paintGrid[d->y][d->x];
+            } else {
+
+                f->grid[d->y][d->x] = '_';
+            }
+
+            d->x = finalX;
+            d->y = finalY;
+
+            f->grid[d->y][d->x] = '#';
+
+            return 1; // Успешно
+        }
+        
         return 0;
     }
 }
