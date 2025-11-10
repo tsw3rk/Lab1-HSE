@@ -7,17 +7,7 @@
 #include "dino.h"
 #include "utilities.h"
 
-// Структура для хранения состояния выполнения и опций
-typedef struct {
-    int sizeWasCalled;
-    int startWasCalled;
-    int lineNumber;
 
-    // Новые поля для опций
-    int noDisplay;
-    int noSave;
-    int intervalSeconds;
-} ExecutionState;
 
 void parseOptions(int argc, char* argv[], ExecutionState* state) {
     state->noDisplay = 0;
@@ -64,6 +54,83 @@ int main(int argc, char* argv[]) {
     Dino* d = NULL;
     int result = 1;
     char line[256];
+
+    if (fgets(line, sizeof(line), inputFile) != NULL) {
+        state.lineNumber = 1; // Устанавливаем номер строки
+
+        // Пропускаем комментарии в начале файла
+        // Используем while, чтобы обработать несколько комментариев подряд
+
+        while (strncmp(line, "//", 2) == 0) {
+            if (fgets(line, sizeof(line), inputFile) == NULL) {
+                // Файл закончился только комментариями
+                printf("Error: Input file contains only comments or is empty.\n");
+                result = 0; 
+                break; // Выходим из while, а затем из внешнего if
+            }
+            state.lineNumber++;
+        }
+
+        // Если цикл был прерван из-за ошибки (файл пуст после комментариев),
+        // переменная result уже установлена в 0.
+        if (result == 1) { // Только если мы не вышли по ошибке из цикла
+            // Теперь line содержит первую "реальную" команду
+            char firstCmd[20];
+            if (sscanf(line, "%19s", firstCmd) == 1) {
+                if (strcmp(firstCmd, "LOAD") == 0) {
+                    char filename[256];
+                    if (sscanf(line, "LOAD %255s", filename) == 1) {
+                        // Вызываем функцию загрузки поля из файла
+                        f = loadFieldFromFile(filename, &d); // d будет создана внутри loadFieldFromFile
+                        if (f && d) {
+                            state.sizeWasCalled = 1; // Поле загружено
+                            state.startWasCalled = 1; // Динозавр загружен
+                            // Продолжаем выполнение команд из основного файла inputFile
+                        } else {
+                            printf("Error: Failed to load field from '%s'. Terminating.\n", filename);
+                            result = 0;
+                        }
+                    } else {
+                        printf("Error: Invalid LOAD format at line %d. Terminating.\n", state.lineNumber);
+                        result = 0;
+                    }
+                } else {
+                    // Проверим, является ли она SIZE.
+                    if (strcmp(firstCmd, "SIZE") != 0) {
+                        printf("Error: First non-comment command must be SIZE or LOAD. Found '%s' at line %d. Terminating.\n", firstCmd, state.lineNumber);
+                        result = 0;
+
+                    } else {
+                        // Обрабатываем SIZE из line
+                        int w, h;
+                        if (sscanf(line, "SIZE %d %d", &w, &h) == 2 && w >= 10 && w <= 100 && h >= 10 && h <= 100) {
+                            if (f) { freeField(f); } // Если f уже создана, освобождаем
+                            f = createField(w, h);
+                            if (f) {
+                                state.sizeWasCalled = 1;
+                            } else {
+                                printf("Error: Failed to create field at line %d. Terminating.\n", state.lineNumber);
+                                result = 0;
+
+                            }
+                        } else {
+                            printf("Error: Invalid SIZE format or dimensions at line %d. Terminating.\n", state.lineNumber);
+                            result = 0;
+
+                        }
+                    }
+                }
+            } else {
+                // Строка не содержит команды
+                printf("Error: First non-comment line does not contain a command at line %d. Terminating.\n", state.lineNumber);
+                result = 0;
+            }
+        }
+    } else {
+        // Файл пустой
+        printf("Error: Input file is empty.\n");
+        result = 0;
+    }
 
     // Основной цикл чтения команд
     while (fgets(line, sizeof(line), inputFile) != NULL) {
@@ -141,7 +208,7 @@ int main(int argc, char* argv[]) {
                     break;
                 }
 
-                // Вызываем execute_command для остальных команд
+                // Вызываем executeСommand для остальных команд
                 result = executeCommand(f, d, line);
                 if (result == EXEC_ERROR_FORMAT) {
                     printf("Error: Unknown or invalid command '%s' at line %d. Terminating.\n", line, state.lineNumber);
