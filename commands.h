@@ -22,6 +22,8 @@ typedef struct {
 #include "field.h"
 #include "dino.h"
 
+int executeCommandsFromFile(Field* f, Dino* d, const char* filename, ExecutionState* state); // Вспомогательная функция
+
 int executeCommand(Field* f, Dino* d, char* line);
 
 #endif //LAB1_COMMANDS_H
