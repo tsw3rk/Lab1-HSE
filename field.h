@@ -9,11 +9,12 @@ typedef struct {
     int width;
     int height;
     char grid[MAX_HEIGHT][MAX_WIDTH];  // символы на поле
-    char paint_grid[MAX_HEIGHT][MAX_WIDTH];  // цвета клеток (a-z)
+    char paintGrid[MAX_HEIGHT][MAX_WIDTH];  // цвета клеток (a-z)
 } Field;
 
-Field* create_field(int width, int height);
-void print_field(Field* f);
-void free_field(Field* f);
+Field* createField(int width, int height);
+void printField(Field* f);
+void freeField(Field* f);
+Field* loadFieldFromFile(const char* filename, struct Dino** dino);
 
 #endif //LAB1_FIELD_H
