@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
             if (fgets(line, sizeof(line), inputFile) == NULL) {
                 // Файл закончился только комментариями
                 printf("Error: Input file contains only comments or is empty.\n");
-                result = 0; 
+                result = 0;
                 break; // Выходим из while, а затем из внешнего if
             }
             state.lineNumber++;
@@ -218,27 +218,31 @@ int main(int argc, char* argv[]) {
                     // execute_command сам выводит сообщение
                     break; // Программа завершается
                 }
+                if (result == 1 && strcmp(cmd, "UNDO") != 0) { // Убедимся, что команда не была UNDO
+                    StateSnapshot* currentSnapshot = createSnapshot(f, d);
+                    if (currentSnapshot) {
+                        pushState(state.history, currentSnapshot);
+                    } else {
+                        printf("Error: Failed to create state snapshot. Terminating.\n");
+                        result = 0; // Устанавливаем ошибку
+                        break;
+                    }
+                }
             }
         }
 
-        // Проверяем, нужно ли отображать поле
-        if (!state.noDisplay) {
-            // Очищаем консоль
+        if (result == 1 && !state.noDisplay) {
             clearScreen();
-            // Выводим поле
             printFieldToConsole(f);
-            // Делаем задержку
             sleepSeconds(state.intervalSeconds);
         }
     }
 
     fclose(inputFile);
 
-    // Проверяем, нужно ли сохранять в output.txt
-    if (!state.noSave && result != 0 && f != NULL) {
+    if (result != 0 && !state.noSave && f != NULL) {
         FILE* outputFile = fopen(argv[2], "w");
         if (outputFile) {
-            // Выводим поле в файл (реализация в утилитах)
             printFieldToFile(f, outputFile);
             fclose(outputFile);
         } else {
@@ -247,13 +251,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Освобождение памяти
-    if (f) freeField(f);
-    if (d) freeDino(d);
-
     if (result == 0) {
         return 1;
     }
-
-    return 0;
 }
