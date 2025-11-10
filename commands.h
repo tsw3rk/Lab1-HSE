@@ -1,0 +1,7 @@
+#ifndef LAB1_COMMANDS_H
+#define LAB1_COMMANDS_H
+
+
+
+
+#endif //LAB1_COMMANDS_H
