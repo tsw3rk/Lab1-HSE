@@ -1,6 +1,6 @@
 #ifndef LAB1_UTILITIES_H
 #define LAB1_UTILITIES_H
-
+#include <stdio.h>
 // Функция для очистки консоли
 void clearScreen();
 
@@ -12,5 +12,6 @@ void printFieldToConsole(struct Field* f); // struct Field*, т.к. Field мож
 
 // Функция для вывода поля в файл
 void printFieldToFile(struct Field* f, FILE* file);
+
 
 #endif //LAB1_UTILITIES_H
