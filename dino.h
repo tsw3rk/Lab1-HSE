@@ -7,8 +7,6 @@ typedef struct {
 }Dino;
 
 Dino* createDino(int x, int y);
-int moveDino(Dino* d, int dx, int dy, int width, int height);
 void freeDino(Dino* d);
-
 
 #endif //LAB1_DINO_H

@@ -1,6 +1,7 @@
 #include "field.h"
 #include <stdlib.h>
 #include <string.h>
+#include "state.h"
 
 // --- Снимки ---
 

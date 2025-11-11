@@ -1,11 +1,20 @@
 #ifndef LAB1_COMMANDS_H
 #define LAB1_COMMANDS_H
-#define EXEC_SUCCESS 1      // Команда выполнена успешно
-#define EXEC_ERROR_FORMAT 0 // Некорректный формат команды или аргументы
-#define EXEC_ERROR_FATAL -1 // Критическая ошибка (например, наступление в яму)
 
-#include <field.h>
+#include "field.h"
+#include "dino.h"
+#include "state.h"
+#include <stdio.h>
 
+
+#define EXEC_SUCCESS 1
+#define EXEC_ERROR_FORMAT 0
+#define EXEC_ERROR_FATAL -1
+
+// Определяем максимальную глубину вложенности EXEC
+#define MAX_EXEC_DEPTH 10
+
+// Структура для хранения состояния выполнения и опций
 typedef struct {
     int sizeWasCalled;
     int startWasCalled;
@@ -23,11 +32,10 @@ typedef struct {
     StateHistory* history; // Указатель на историю, создаётся в main.c
 } ExecutionState;
 
-#include "field.h"
-#include "dino.h"
+// Объявление новой функции
+int executeCommandsFromFile(Field* f, Dino* d, const char* filename, ExecutionState* state);
 
-int executeCommandsFromFile(Field* f, Dino* d, const char* filename, ExecutionState* state); // Вспомогательная функция
-
-int executeCommand(Field* f, Dino* d, char* line);
+// Обновлённая сигнатура execute_command
+int executeCommand(Field* f, Dino* d, char* line, ExecutionState* state);
 
 #endif //LAB1_COMMANDS_H

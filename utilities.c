@@ -1,5 +1,5 @@
 #include "utilities.h"
-#include "field.h" // Подключаем, чтобы знать структуру Field
+#include "field.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,9 +24,9 @@ void clearScreen() {
 // Задержка в секундах
 void sleepSeconds(int seconds) {
 #ifdef _WIN32
-    Sleep(seconds * 1000);
+    Sleep(seconds * 1000); // В Windows Sleep() принимает миллисекунды
 #else
-    sleep(seconds);
+    sleep(seconds);       // В Unix/Linux/macOS sleep() принимает секунды
 #endif
 }
 

@@ -6,6 +6,7 @@
 #include "field.h"
 #include "dino.h"
 #include "utilities.h"
+#include "state.h"
 
 
 
@@ -209,7 +210,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Вызываем executeСommand для остальных команд
-                result = executeCommand(f, d, line);
+                result = executeCommand(f, d, line, &state);
                 if (result == EXEC_ERROR_FORMAT) {
                     printf("Error: Unknown or invalid command '%s' at line %d. Terminating.\n", line, state.lineNumber);
                     break;
